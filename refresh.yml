@@ -1,0 +1,36 @@
+name: Refresh Internship Listings
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"   # Every Monday at 9:00 AM UTC
+  workflow_dispatch:        # Manual trigger from GitHub UI → Actions tab
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write       # Needed to push CSV + README changes back to repo
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Fetch internships from all sources
+        env:
+          ADZUNA_APP_ID:  ${{ secrets.ADZUNA_APP_ID }}   # Optional — skip if not set
+          ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}   # Optional — skip if not set
+        run: python scripts/fetch_internships.py
+
+      - name: Commit and push if changes were made
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add internships.csv README.md
+          git diff --cached --quiet || git commit -m "chore: refresh listings $(date +'%Y-%m-%d')"
+          git push
